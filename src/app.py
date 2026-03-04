@@ -1,8 +1,10 @@
 import os 
 import tkinter as tk
+import numpy as np
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 from src.image_processing import ImageProcessor
+import cv2
 
 class GUI_App:
     def __init__(self, _tkroot):
@@ -46,33 +48,45 @@ class GUI_App:
         self.mainMenubar = tk.Menu(self.tkroot)
         self.fileMenu = tk.Menu(self.mainMenubar, tearoff=0)
         self.editMenu = tk.Menu(self.mainMenubar, tearoff=0)
+        self.tabMenu = tk.Menu(self.mainMenubar, tearoff=0)
         self.tkroot.config(menu=self.mainMenubar)
 
         self.mainMenubar.add_cascade(label="File", menu=self.fileMenu)
         self.mainMenubar.add_cascade(label="Edit", menu=self.editMenu)
+        self.mainMenubar.add_cascade(label="Tab", menu=self.tabMenu)
 
         fileOptions = [("Open File", self.open_file), ("Save Image", self.save_image), "separator", ("About", self.show_popup_about), ("Exit", self.tkroot.destroy)]
-        editOptions = [("Update Image", self.update_image), ("Close Tab", self.close_current_tab)]
+        editOptions = [("Update Image", self.update_image), ("Deconvolve Image", self.deconvolve_image), ("Close Tab", self.close_current_tab)]
+        tabOptions = [("Close Tab", self.close_current_tab)]
         
-        menuOptions = [(self.fileMenu, fileOptions), (self.editMenu, editOptions)]
+        menuOptions = [(self.fileMenu, fileOptions), (self.editMenu, editOptions), (self.tabMenu, tabOptions)]
 
         for menu in menuOptions:
-            for option in menu[1]:
-                if isinstance(option, tuple):
-                    menu[0].add_command(label=option[0], command=option[1])
-                elif isinstance(option, str):
-                    match option:
-                        case "separator":
-                            menu[0].add_separator()
-                        case _:
-                            menu[0].add_command(label=option)
+            if not isinstance(menu, tuple) or len(menu) != 2:
+                raise Exception("Invalid menu option. Expected a tuple of (menu, options).")
+            self.setup_gui_menu_options(menu)
+    
+    def setup_gui_menu_options(self, _menu):
+        for option in _menu[1]:
+            if isinstance(option, tuple):
+                if len(option) != 2 or not callable(option[1]):
+                    raise Exception("Invalid menu option tuple. Expected (label, command) where command is a callable.")
+                _menu[0].add_command(label=option[0], command=option[1])
+            elif isinstance(option, str):
+                match option:
+                    case "separator":
+                        _menu[0].add_separator()
+                    case _:
+                        _menu[0].add_command(label=option)
+            else:
+                raise Exception("Invalid menu option type. Expected tuple or string.")
 
     def open_file(self):
         file_path = filedialog.askopenfilename()
         if not file_path or not os.path.isfile(file_path):
             return
         
-        self.original_image = self.proc.load_image(file_path)
+        self.original_image = self.proc.get_image(file_path)
 
         self.show_image("Original Image", self.original_image)
 
@@ -81,7 +95,18 @@ class GUI_App:
             self.trow_error("No image loaded. Please open an image first.")
             return
         
-        self.processed_image = self.proc.process_image()
+        kernel = cv2.getGaussianKernel(15, 6) @ cv2.getGaussianKernel(15, 6).T
+
+        self.processed_image = self.proc.apply_kernel_to_image(self.original_image, kernel)
+
+        self.show_image("Processed Image", self.processed_image)
+    
+    def deconvolve_image(self):
+        if not hasattr(self, 'original_image'):
+            self.trow_error("No image loaded. Please open an image first.")
+            return
+
+        self.processed_image = self.proc.deconvolve_image(self.original_image)
 
         self.show_image("Processed Image", self.processed_image)
     

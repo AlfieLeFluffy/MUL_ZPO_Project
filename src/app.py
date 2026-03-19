@@ -4,10 +4,12 @@ import numpy as np
 from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageTk
 from src.image_processing import ImageProcessor
+from src.image import CImage
 import cv2
 
 class GUI_App:
     def __init__(self, _tkroot):
+        self.current_tab = None
         self.tabs = {}
         self.images = {}
 
@@ -18,13 +20,21 @@ class GUI_App:
         self.setup_gui_elements()
         
     def setup_gui_basic(self):
-        self.tkroot.title("MUL/ZPO Project")
-        self.tkroot.geometry('600x400')
+        self.tkroot.title("Fourier Tranform Filtering")
+        self.tkroot.geometry('800x600')
+
+    def on_tab_change(self, event):
+        if len(self.tabControl.tabs()) == 0:
+            tab_text = None
+        else:
+            tab_text = self.tabControl.tab("current", "text")
+        self.current_tab = tab_text
 
     def setup_gui_elements(self):
         self.setup_gui_menu()
 
-        self.tabControl = ttk.Notebook(self.tkroot)
+        self.tabControl: ttk.Notebook = ttk.Notebook(self.tkroot)
+        self.tabControl.bind("<<NotebookTabChanged>>", self.on_tab_change)
     
     def add_tab(self, _tab_name):
         new_tab = tk.Frame(self.tabControl)
@@ -86,20 +96,27 @@ class GUI_App:
         if not file_path or not os.path.isfile(file_path):
             return
         
-        self.original_image = self.proc.get_image(file_path)
+        img = CImage.load_image(file_path)
+        self.images[img.name] = img
+        self.current_tab = img.name
 
-        self.show_image("Original Image", self.original_image)
+        self.show_image(img.name)
 
     def update_image(self):
-        if not hasattr(self, 'original_image'):
+        if self.current_tab not in self.images:
             self.trow_error("No image loaded. Please open an image first.")
             return
         
-        kernel = cv2.getGaussianKernel(15, 6) @ cv2.getGaussianKernel(15, 6).T
+        kernel = cv2.getGaussianKernel(9, 1) @ cv2.getGaussianKernel(9, 1).T
 
-        self.processed_image = self.proc.apply_kernel_to_image(self.original_image, kernel)
+        #kernel = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        #kernel = kernel / np.sum(kernel)
 
-        self.show_image("Processed Image", self.processed_image)
+        orig_image: CImage = self.images[self.current_tab]
+        proc_image = self.proc.apply_kernel_to_image(orig_image, kernel)
+        self.images[proc_image.name] = proc_image
+
+        self.show_image(proc_image.name)
     
     def deconvolve_image(self):
         if not hasattr(self, 'original_image'):
@@ -111,22 +128,31 @@ class GUI_App:
         self.show_image("Processed Image", self.processed_image)
     
     def save_image(self):
-        if not hasattr(self, 'processed_image'):
+        assert self.current_tab in self.images, f"save_image: No image of name {self.current_tab} in self.images."
+
+        if self.current_tab not in self.images:
             self.trow_error("No processed image available. Please process an image first.")
             return
 
-        output_path = filedialog.asksaveasfilename(defaultextension=".png")
+        output_path = filedialog.asksaveasfilename(defaultextension=".jpeg")
         if output_path:
-            self.proc.save_image(self.processed_image, output_path)
+            self.images[self.current_tab].save_image(output_path)
 
-    def show_image(self, _label, _image):
-        if _label not in self.tabs:
-            self.add_tab(_label)
-        im = Image.fromarray(_image)
-        self.images[_label] = ImageTk.PhotoImage(image=im)
-        label = tk.Label(self.tabs[_label], image=self.images[_label])
-        label.pack()
-        self.tabControl.select(self.tabs[_label])
+    def show_image(self, _image_name):
+        assert _image_name in self.images, f"show_image: No image of name {_image_name} in self.images."
+        image: CImage = self.images[_image_name]
+        label_name = image.name
+
+        if label_name not in self.tabs:
+            self.add_tab(label_name)
+        
+        img = Image.fromarray(image.data)
+        photo_img = ImageTk.PhotoImage(image=img)
+
+        img_label = tk.Label(self.tabs[label_name], image=photo_img)
+        img_label.image = photo_img
+        img_label.pack()
+        self.tabControl.select(self.tabs[label_name])
 
     def trow_error(self, _message):
         messagebox.showerror("Error", _message)

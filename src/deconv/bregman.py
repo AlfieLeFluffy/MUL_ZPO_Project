@@ -10,7 +10,7 @@ class Bregman:
         self.known_beta = np.array([])
         self.known_alpha = np.array([])
 
-    def bregman_deconvolution(self, _image, _kernel, _lambda, _alpha):
+    def bregman_deconvolution(self, _image, _kernel, _lambda, _alpha, _verbose: bool = False):
         beta = 400
         initer_max = 1
         outiter_max = 50
@@ -61,7 +61,8 @@ class Bregman:
 
 
         for outiter in range(outiter_max):
-            print(f'Outer iteration {outiter+1}')
+            if _verbose:
+                print(f'Outer iteration {outiter+1}')
 
             for initer in range(initer_max):
                 totiter += 1

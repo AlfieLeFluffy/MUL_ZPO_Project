@@ -45,7 +45,7 @@ class Deconvolve:
                 ypad = edgetaper(ypad, kernel)
 
             bregmain_decon = Deconvolve.Bregman()
-            output_y = bregmain_decon.bregman_deconvolution(ypad, kernel, nb_lambda, nb_alpha)
+            output_y = bregmain_decon.bregman_deconvolution(ypad, kernel, nb_lambda, nb_alpha, _verbose=_params.verbose)
             output_image = ycbcr.data.copy()
             output_image[:,:,0] = output_y[bhs:output_y.shape[0]-bhs,bhs:output_y.shape[1]-bhs]
 

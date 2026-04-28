@@ -94,16 +94,12 @@ class MinRankKernel:
 
                 L2norm = 6 * Ki / scale[0]
 
-                #print(kernel)
-                #if i == 1:
-                #    exit(0)
-
                 y1 = fftconvolve(smally, dx, "valid")
                 y2 = fftconvolve(smally, dy, "valid")
 
                 x1, x2, kernel = MinRankKernel.blind_deconvolve(y1, y2, x1, x2, kernel, (params.tau * ((i+1) / len(scale))), L2norm, params)
-                y1, x1, kernel = MinRankKernel.center_kernel_separate(y1, x1, kernel)
-                y2, x2, kernel = MinRankKernel.center_kernel_separate(y2, x2, kernel)
+                y1, x1, kernel = MinRankKernel.center_kernel_separate(y1, x1, kernel, params)
+                y2, x2, kernel = MinRankKernel.center_kernel_separate(y2, x2, kernel, params)
                 
                 if False:
                     plt.figure()
@@ -130,7 +126,7 @@ class MinRankKernel:
             return kernel
         
         @staticmethod
-        def center_kernel_separate(y, x, k):
+        def center_kernel_separate(y, x, k, params):
             k_shape = k.shape
             mu_y = np.sum((range(1,k_shape[0]+1) * np.sum(k,1).T))
             mu_x = np.sum((range(1,k_shape[1]+1) * np.sum(k,0)))
@@ -138,7 +134,8 @@ class MinRankKernel:
             offset_x = int(np.round( np.floor(k.shape[1] / 2) + 1 - mu_x ))
             offset_y = int(np.round( np.floor(k.shape[0] / 2) + 1 - mu_y ))
 
-            print(f'CenterKernel: weightedMean[{mu_x-1},{mu_y-1}] offset[{offset_x},{offset_y}]')
+            if params.verbose:
+                print(f'CenterKernel: weightedMean[{mu_x-1},{mu_y-1}] offset[{offset_x},{offset_y}]')
 
             shift_kernel = np.zeros((np.abs(offset_y * 2) + 1, np.abs(offset_x * 2) + 1))
             shift_kernel[np.abs(offset_y) + offset_y, np.abs(offset_x) + offset_x] = 1
@@ -167,7 +164,8 @@ class MinRankKernel:
             #changes = np.zeros((params.imax, 1))
             #k0 = kernel.copy()
             for i in range(params.imax):
-                print(f'Iteration {i+1}...', flush=True)
+                if params.verbose:
+                    print(f'Iteration {i+1}...', flush=True)
                 x1, x2 = MinRankKernel.optimize_x(x1, x2, kernel, y1, y2, params)
                 for iter in range(params.iterkrank):
                     if iter == 0:

@@ -32,10 +32,13 @@ class ImageProcessor:
         return cImageOutput
 
     @staticmethod
-    def deconvolve_image(_image: CImage, _ksize: int = 9):
+    def deconvolve_image(_image: CImage, _ksize: int = 9, _params: Deconvolve.MinRankKernel.MinRankKernelParam = None):
+        if not _params:
+            params = ImageProcessor.Deconvolve.MinRankKernel.MinRankKernelParam()
+        else:
+            params = _params
 
         _image.to_double()
-        params = ImageProcessor.Deconvolve.MinRankKernel.MinRankKernelParam()
         output_cimage, kernel = ImageProcessor.Deconvolve.deconvolve_image(_image, _ksize, params, True)
 
         if params.verbose:

@@ -41,13 +41,27 @@ class CImage:
                 self.data = self.data / 255
                 self.type = self.IMAGE_TYPE.RGB_DOUBLE
 
+    def ycbcr2rgb(self):
+        assert self.type in [self.IMAGE_TYPE.YCBCR_INT, self.IMAGE_TYPE.YCBCR_DOUBLE], f"Failed to convert rgb to ycbcr as the image {self.name} is in type {self.type}"
+
+        image_ycbcr = self.data.astype(np.float32)
+        image_ycrcb = image_ycbcr[:,:,(0,2,1)].astype(np.float32)
+        image_rgb = cv2.cvtColor(image_ycrcb, cv2.COLOR_YCR_CB2RGB)
+        image_rgb = (np.round(image_rgb * 255))
+        image_rgb = np.clip(image_rgb, a_min=0, a_max=255)
+        image_rgb = image_rgb.astype(np.uint8)
+
+        output = CImage(image_rgb, "rgb_" + self.name, self.IMAGE_TYPE.RGB_INT)
+        return output
+
     def rgb2ycbcr(self):
-        
-        im_rgb = self.data.astype(np.float32)
-        im_ycrcb = cv2.cvtColor(im_rgb, cv2.COLOR_RGB2YCR_CB)
-        im_ycbcr = im_ycrcb[:,:,(0,2,1)].astype(np.float32)
-        im_ycbcr[:,:,0] = (im_ycbcr[:,:,0]*(235-16)+16)/255.0 #to [16/255, 235/255]
-        im_ycbcr[:,:,1:] = (im_ycbcr[:,:,1:]*(240-16)+16)/255.0 #to [16/255, 240/255]
-        self.data = im_ycbcr
-        self.type = self.IMAGE_TYPE.YCBCR_DOUBLE
-        return self
+        assert self.type in [self.IMAGE_TYPE.RGB_INT, self.IMAGE_TYPE.RGB_DOUBLE], f"Failed to convert rgb to ycbcr as the image {self.name} is in type {self.type}" 
+
+        image_rgb = self.data.astype(np.float32)
+        image_ycrcb = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2YCR_CB)
+        image_ycbcr = image_ycrcb[:,:,(0,2,1)].astype(np.float32)
+        image_ycbcr[:,:,0] = (image_ycbcr[:,:,0]*(235-16)+16)/255.0 #to [16/255, 235/255]
+        image_ycbcr[:,:,1:] = (image_ycbcr[:,:,1:]*(240-16)+16)/255.0 #to [16/255, 240/255]
+
+        output = CImage(image_ycbcr, "ycbcr_" + self.name, self.IMAGE_TYPE.YCBCR_DOUBLE)
+        return output

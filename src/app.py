@@ -1,11 +1,12 @@
 import os 
-import tkinter as tk
-import numpy as np
-from tkinter import filedialog, messagebox, ttk
-from PIL import Image, ImageTk
-from src.image_processing import ImageProcessor
-from src.image import CImage
 import cv2
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk, simpledialog
+from PIL import Image, ImageTk
+
+from src.processing import ImageProcessor
+from src.image import CImage
 
 class GUI_App:
     def __init__(self, _tkroot):
@@ -13,7 +14,6 @@ class GUI_App:
         self.tabs = {}
         self.images = {}
 
-        self.proc = ImageProcessor()
         self.tkroot = _tkroot
 
         self.setup_gui_basic()
@@ -107,25 +107,26 @@ class GUI_App:
             self.trow_error("No image loaded. Please open an image first.")
             return
         
-        kernel = cv2.getGaussianKernel(9, 1) @ cv2.getGaussianKernel(9, 1).T
-
-        #kernel = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        #kernel = kernel / np.sum(kernel)
+        kernel = cv2.getGaussianKernel(9, 3) @ cv2.getGaussianKernel(9, 3).T
+        kernel = kernel / np.sum(kernel)
 
         orig_image: CImage = self.images[self.current_tab]
-        proc_image = self.proc.apply_kernel_to_image(orig_image, kernel)
+        proc_image = ImageProcessor.apply_kernel_to_image(orig_image, kernel)
         self.images[proc_image.name] = proc_image
 
         self.show_image(proc_image.name)
     
     def deconvolve_image(self):
-        if not hasattr(self, 'original_image'):
+        if self.current_tab not in self.images:
             self.trow_error("No image loaded. Please open an image first.")
             return
 
-        self.processed_image = self.proc.deconvolve_image(self.original_image)
+        orig_image: CImage = self.images[self.current_tab]
+        user_input = simpledialog.askstring(title="Kernel Size", prompt="What should be the kernel size?:")
+        decon_image, kernel = ImageProcessor.deconvolve_image(orig_image, int(user_input))
+        self.images[decon_image.name] = decon_image
 
-        self.show_image("Processed Image", self.processed_image)
+        self.show_image(decon_image.name)
     
     def save_image(self):
         assert self.current_tab in self.images, f"save_image: No image of name {self.current_tab} in self.images."
@@ -140,13 +141,16 @@ class GUI_App:
 
     def show_image(self, _image_name):
         assert _image_name in self.images, f"show_image: No image of name {_image_name} in self.images."
-        image: CImage = self.images[_image_name]
-        label_name = image.name
+        cimage: CImage = self.images[_image_name]
+        label_name = cimage.name
 
         if label_name not in self.tabs:
             self.add_tab(label_name)
         
-        img = Image.fromarray(image.data)
+        if cimage.type == CImage.IMAGE_TYPE.RGB_INT:
+            data = cimage.data
+
+        img = Image.fromarray(data)
         photo_img = ImageTk.PhotoImage(image=img)
 
         img_label = tk.Label(self.tabs[label_name], image=photo_img)

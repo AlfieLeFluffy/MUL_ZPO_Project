@@ -1,10 +1,11 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 from src.image import CImage
+from src.deconv.min_rank_kernel import MinRankKernel
 from src.util.image_preprocessing import edgetaper
 from src.util.profiling import start_profiling, end_profiling
 from src.util.plotting import plot_images
+
 
 class Deconvolve:
     """
@@ -14,48 +15,95 @@ class Deconvolve:
     from src.deconv.min_rank_kernel import MinRankKernel
     from src.deconv.bregman import Bregman
 
-    #def conv2_center(_image, _kernel, _shape):
-    #    return np.fft.irfft2(np.fft.rfft2(_image, _shape) * np.fft.rfft2(_kernel, _shape), _shape)
+    @staticmethod
+    def deconvolve_cimage_mrk(
+        _image: CImage,
+        _ksize,
+        _params: MinRankKernel.MinRankKernelParam,
+    ):
+        """Takes in an input image, expected kernel size and parameters, which are then used to estimate the kernel by which the image was affected.
+
+        Args:
+            _image (CImage): Input image
+            _ksize (int): Estimated size of the kernel
+            _params (MinRankKernel.MinRankKernelParam): MRK parameters
+
+        Raises:
+            Exception: _description_
+
+        Returns:
+            np.ndarray: Estimated kernel
+        """
+        ycbcr = Deconvolve.convert_to_ycbcr(_image)
+
+        profile = start_profiling()
+        kernel = Deconvolve.MinRankKernel.deconvolve(
+            ycbcr.data[:, :, 0], _ksize, _params
+        )
+        end_profiling(profile, f"profiling/{_image.name}_{str(_ksize)}temp.txt")
+
+        return kernel
 
     @staticmethod
-    def deconvolve_image(_image: CImage, _ksize, _params: MinRankKernel.MinRankKernelParam, _finalization=True):
+    def deconvolve_cimage_bregman(_image: CImage, _kernel: np.ndarray, _verbose=False):
+        ycbcr = Deconvolve.convert_to_ycbcr(_image)
+
         nb_lambda = 3000
-        nb_alpha = 0.5
-        use_ycbcr = True
+        nb_alpha = 1
+        bhs = int(np.floor(_kernel.shape[0]))
+        ypad = np.pad(ycbcr.data[:, :, 0], bhs, "edge")
 
-        if use_ycbcr:
-            if len(_image.size) == 3:
-                if _image.size[2] == 3:
-                    ycbcr: CImage = _image.rgb2ycbcr()
-                else:
-                    raise Exception("What is this picture?")
-            else:
-                ycbcr = _image
-            nb_alpha = 1
-        
-        profile = start_profiling()
-        kernel = Deconvolve.MinRankKernel.deconvolve(ycbcr.data[:,:,0], _ksize, _params)
-        end_profiling(profile, f"profiling/{_image.name}_{str(_ksize)}temp.txt")
-        
-        if _finalization:
-            bhs = int(np.floor(kernel.shape[0]))
-            ypad = np.pad(ycbcr.data[:,:,0], bhs, "edge")
-            
-            for _ in range(3):
-                ypad = edgetaper(ypad, kernel)
+        for _ in range(3):
+            ypad = edgetaper(ypad, _kernel)
 
-            bregmain_decon = Deconvolve.Bregman()
-            output_y = bregmain_decon.bregman_deconvolution(ypad, kernel, nb_lambda, nb_alpha, _verbose=_params.verbose)
-            output_image = ycbcr.data.copy()
-            output_image[:,:,0] = output_y[bhs:output_y.shape[0]-bhs,bhs:output_y.shape[1]-bhs]
+        bregman_decon = Deconvolve.Bregman()
+        output_y = bregman_decon.deconvolve(
+            ypad, _kernel, nb_lambda, nb_alpha, _verbose=_verbose
+        )
+        output_image = ycbcr.data.copy()
+        output_image[:, :, 0] = output_y[
+            bhs : output_y.shape[0] - bhs, bhs : output_y.shape[1] - bhs
+        ]
 
-            output_cimage = CImage(output_image, "decon" + _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE)
-            output_cimage = output_cimage.ycbcr2rgb()
+        output_cimage = CImage(
+            output_image, _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE, time_stamp=True
+        )
+        output_cimage = output_cimage.ycbcr2rgb()
 
-            if _params.verbose:
-                plot_images({"original image": _image.data, "ycbcr image": ycbcr.data, "padded image": ypad, "processed image": output_cimage.data},2,2)
+        if _verbose:
+            plot_images(
+                {
+                    "original image": _image.data,
+                    "ycbcr image": ycbcr.data,
+                    "padded image": ypad,
+                    "processed image": output_cimage.data,
+                },
+                2,
+                2,
+            )
+
+        return output_cimage
+
+    @staticmethod
+    def deconvolve_image(_image: CImage, _kernel_size: int = -1):
+        kernel_size = _kernel_size if _kernel_size != -1 else 9
+        param = MinRankKernel.MinRankKernelParam()
+        kernel = Deconvolve.deconvolve_cimage_mrk(_image, kernel_size, param)
+        output_cimage = Deconvolve.deconvolve_cimage_bregman(
+            _image, kernel, _verbose=True
+        )
+        return output_cimage
+
+    @staticmethod
+    def convert_to_ycbcr(_image: CImage):
+        if _image.type in [CImage.IMAGE_TYPE.RGB_INT, CImage.IMAGE_TYPE.RGB_DOUBLE]:
+            ycbcr: CImage = _image.rgb2ycbcr()
+        elif _image.type in [
+            CImage.IMAGE_TYPE.YCBCR_INT,
+            CImage.IMAGE_TYPE.YCBCR_DOUBLE,
+        ]:
+            ycbcr = _image
         else:
-            output_cimage = CImage(ycbcr, "nondecon" + _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE)
-            output_cimage = output_cimage.ycbcr2rgb()
+            raise Exception("What is this picture?")
 
-        return output_cimage, kernel
+        return ycbcr

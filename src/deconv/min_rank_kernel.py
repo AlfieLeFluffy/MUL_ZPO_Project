@@ -72,6 +72,7 @@ class MinRankKernel:
             "ERROR in Min-Rank-Kernel: Kernel size must be odd!"
         )
 
+        print("--- Starting Min-Rank-Kernel ---")
         kernel_size = _ksize
         minimum_kernel_scale = int(
             (np.max((2 * np.floor((kernel_size - 1) / 32) + 1, 3)))
@@ -90,6 +91,8 @@ class MinRankKernel:
         assert len(kernel_scales) > 1, (
             "ERROR in Min-Rank-Kernel: Cannot create kernel scales!"
         )
+        kernel_scales_len = len(kernel_scales)
+        kernel_scale_current = 0
 
         current_kernel = np.zeros((minimum_kernel_scale, minimum_kernel_scale))
         kernel_centre = int(minimum_kernel_scale / 2)
@@ -101,7 +104,11 @@ class MinRankKernel:
 
         for i in range(len(kernel_scales)):
             current_layer_kernel_size = kernel_scales[i]
-            print(f"Processing ksize = {current_layer_kernel_size}")
+            print(
+                f"Processing kernel size {current_layer_kernel_size} ({kernel_scale_current + 1}/{kernel_scales_len})",
+                flush=True,
+            )
+            kernel_scale_current += 1
             ratio = current_layer_kernel_size / kernel_size
             resize_size = (
                 int(np.floor(_image.shape[1] * ratio)),

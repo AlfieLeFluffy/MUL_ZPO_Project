@@ -27,11 +27,19 @@ class CImage:
             self.name = _name
         self.type = _type
         self.size = _data.shape
+        self.saved = False
+
+    def __str__(self):
+        return f"CImage(name={self.name}, type={self.type}, size={self.size}, saved={self.saved})"
+
+    def is_saved(self):
+        return self.saved
 
     def save_image(self, _filepath):
         img_bgr = cv2.cvtColor(self.data, cv2.COLOR_RGB2BGR)
         check = cv2.imwrite(_filepath, img_bgr)
         assert check is True, f"Failed to save image to path {_filepath}"
+        self.saved = True
 
     @staticmethod
     def load_image(_filepath: str):
@@ -41,6 +49,7 @@ class CImage:
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
         img_name = _filepath.split("/")[-1]
         img = CImage(img_rgb, img_name, CImage.IMAGE_TYPE.RGB_INT)
+        img.saved = True
         return img
 
     def to_double(self):

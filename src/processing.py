@@ -29,7 +29,7 @@ class ImageProcessor:
             imageOutput, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8U
         )
         cImageOutput = CImage(
-            imageOutput, _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE, time_stamp=True
+            imageOutput, _image.name, CImage.IMAGE_TYPE.RGB_INT, time_stamp=True
         )
 
         return cImageOutput

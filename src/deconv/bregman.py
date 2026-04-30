@@ -29,7 +29,7 @@ class Bregman:
         km = _kernel.shape[0]
         kn = _kernel.shape[1]
         # ks = int(np.floor(_kernel.shape[0]/2))
-        g = _image.copy()
+        output_image = _image.copy()
 
         if (np.mod(km, 2) != 1) or (np.mod(kn, 2) != 1):
             raise Exception("Kernel must be odd!")
@@ -41,8 +41,8 @@ class Bregman:
 
         Ktf, KtK, DtD, Fdx, Fdy = self.compute_constants(_image, _kernel, dx, dy)
 
-        gx = fftconvolve(g, dx, "valid")
-        gy = fftconvolve(g, dy, "valid")
+        gx = fftconvolve(output_image, dx, "valid")
+        gy = fftconvolve(output_image, dy, "valid")
 
         # fx = convolve2d(_image, dx, 'valid')
         # fy = convolve2d(_image, dy, 'valid')
@@ -118,10 +118,10 @@ class Bregman:
                 num = _lambda * Ktf + beta * np.fft.fft2(wx1 + wy1)
                 denom = _lambda * KtK + beta * DtD
                 Fg = np.divide(num, denom)
-                g = np.real(np.fft.ifft2(Fg))
+                output_image = np.real(np.fft.ifft2(Fg))
 
-                gx = fftconvolve(g, dx, "valid")
-                gy = fftconvolve(g, dy, "valid")
+                gx = fftconvolve(output_image, dx, "valid")
+                gy = fftconvolve(output_image, dy, "valid")
                 # gk = convolve2d(g, _kernel, 'same')
                 # lcost.insert(totiter, (_lambda / 2) * np.pow(ImageProcessor.Deconvolve.norm2(np.concatenate(gk) - np.concatenate(_image)),2))
                 # pcost.insert(totiter, np.sum((np.pow(np.abs(np.concatenate(gx)), _alpha))))
@@ -130,7 +130,7 @@ class Bregman:
         print(f"Bregman iteration {outiter_max}/ {outiter_max}", flush=True)
         print("--- Bregman Finished ---", flush=True)
 
-        return g
+        return output_image
 
     def compute_constants(self, _image, _kernel, _dx, _dy):
         sizef = _image.shape
@@ -166,7 +166,8 @@ class Bregman:
             w = np.reshape(w, _input.shape)
         else:
             # now go and recompute xx for new value of beta and alpha
-            tmp = self.compute_w(self.xx, _beta, _alpha)
+            # tmp = self.compute_w(self.xx, _beta, _alpha)
+            pass
 
     def compute_w(self, _input, _beta, _alpha):
         if np.abs(_alpha - 1) < 1e-9:
@@ -195,11 +196,11 @@ class Bregman:
         # solve a cubic equation
         # for alpha = 1/2
 
-        epsilon = 1e-6
+        # epsilon = 1e-6
         k = -0.25 / np.pow(_beta, 2)
         m = np.ones(_input.shape) * k * np.sign(_input)
 
-        t1 = (2 / 3) * _input
+        # t1 = (2 / 3) * _input
         v2 = _input * _input
         v3 = v2 * _input
         t2 = np.exp(

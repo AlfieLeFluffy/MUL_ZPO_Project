@@ -2,3 +2,5 @@ opencv-python==4.13.0.92
 Pillow==10.4.0
 matplotlib
 scipy
+customtkinter
+CTkMenuBar

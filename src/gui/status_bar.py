@@ -1,16 +1,21 @@
-import tkinter as tk
+import customtkinter as ctk
 from src.image import CImage
 
 
 class StatusBar:
-    def __init__(self):
-        self.setup_status_bar()
+    def __init__(self, _root):
+        self.padding_x = 10
+        self.padding_y = 4
+        self.setup_status_bar(_root)
 
-    def setup_status_bar(self):
+    def setup_status_bar(self, _root):
         """Initial setup for a status bar"""
-        self.statusbar = tk.Frame(padx=4, pady=4)
-        self.resolution_label = tk.Label(self.statusbar, text="Resolution: ")
-        self.resolution_label.pack(anchor="w")
+        self.root = _root
+        self.statusbar = ctk.CTkFrame(_root, fg_color="gray10")
+        self.resolution_label = ctk.CTkLabel(self.statusbar, text="No image loaded")
+        self.resolution_label.grid(
+            row=0, column=0, padx=self.padding_x, pady=self.padding_y, sticky="e"
+        )
         self.statusbar.pack(side="bottom", fill="x")
 
     def update_status_bar(self, _image: CImage):
@@ -20,13 +25,25 @@ class StatusBar:
             _image (CImage): Image containing the information
         """
         self.resolution_label.destroy()
-        self.resolution_label = tk.Label(
+        self.resolution_label = ctk.CTkLabel(
             self.statusbar, text=f"Resolution: {_image.size[0]} x {_image.size[1]} "
         )
-        self.resolution_label.pack(anchor="w")
+        self.resolution_label.grid(
+            row=0, column=0, padx=self.padding_x, pady=self.padding_y, sticky="e"
+        )
+
+        self.saved_status_label = ctk.CTkLabel(
+            self.statusbar, text=f"Saved: {_image.is_saved()}"
+        )
+        self.saved_status_label.grid(
+            row=0, column=1, padx=self.padding_x, pady=self.padding_y, sticky="e"
+        )
 
     def reset_status_bar(self):
         """Resets the status bar to an empty state."""
         self.resolution_label.destroy()
-        self.resolution_label = tk.Label(self.statusbar, text="Resolution: ")
-        self.resolution_label.pack(anchor="w")
+        self.saved_status_label.destroy()
+        self.resolution_label = ctk.CTkLabel(self.statusbar, text="No image loaded")
+        self.resolution_label.grid(
+            row=0, column=0, padx=self.padding_x, pady=self.padding_y, sticky="e"
+        )

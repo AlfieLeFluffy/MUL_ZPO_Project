@@ -93,7 +93,7 @@ def async_execute(
     coro: Coroutine,
     wait: bool = True,
     visible: bool = True,
-    pop_up: bool = True,
+    pop_up: bool = False,
     callback: Optional[Callable] = None,
     show_exceptions: bool = True,
     message: Optional[Union[str, Callable[[str], str]]] = lambda name: (

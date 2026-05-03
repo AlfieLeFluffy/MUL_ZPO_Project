@@ -78,11 +78,16 @@ class Tab:
         self.saved = True
         self.tab_control.add(self.MAIN_TAB)
         self.tab_frame = ctk.CTkFrame(self.tab_control.tab(self.MAIN_TAB))
+        self.menu_label = ctk.CTkLabel(
+            self.tab_frame,
+            text="Image Deconvolution and Fourier Transform \nin Image Filtering",
+            font=("test", 20),
+        ).pack(anchor="c", padx=10, pady=10)
         for key in self.menu_controls.keys():
             button = ctk.CTkButton(
                 self.tab_frame, text=key, command=self.menu_controls[key]
             )
-            button.pack(anchor="nw", padx=10, pady=10)
+            button.pack(anchor="c", padx=4, pady=4)
         self.tab_frame.pack(padx=10, pady=10, fill="both", expand=True)
         return self
 

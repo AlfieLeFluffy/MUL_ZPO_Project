@@ -61,7 +61,11 @@ class GUI_App:
             self.tabs[self.MAIN_TAB] = Tab(
                 self.tab_control,
                 _menu_tab=True,
-                _menu_controls={"Open File": self.open_file},
+                _menu_controls={
+                    "Open File": self.open_file,
+                    "Run Test": self.run_tests,
+                    "Exit": self.tkroot.destroy,
+                },
             )
 
     def remove_tab(self, _tab_name: str):
@@ -421,7 +425,7 @@ class GUI_App:
         test_image = self.get_current_cimage()
         if test_image is None:
             test_image = CImage(
-                np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8), "test_image"
+                np.random.randint(0, 255, (1024, 1024, 1), dtype=np.uint8), "test_image"
             )
 
         number_of_cycles, kernel_size, kernel_sigma = Form(

@@ -18,12 +18,21 @@ class StatusBar:
         )
         self.statusbar.pack(side="bottom", fill="x")
 
+        self.saved_status_label = ctk.CTkLabel(self.statusbar, text="")
+        self.saved_status_label.grid(
+            row=0, column=1, padx=self.padding_x, pady=self.padding_y, sticky="e"
+        )
+
     def update_status_bar(self, _image: CImage):
         """Updates the status bar with image information.
 
         Args:
             _image (CImage): Image containing the information
         """
+        if not isinstance(_image, CImage):
+            self.reset_status_bar()
+            return
+
         self.resolution_label.destroy()
         self.resolution_label = ctk.CTkLabel(
             self.statusbar, text=f"Resolution: {_image.size[0]} x {_image.size[1]} "

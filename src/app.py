@@ -1,5 +1,5 @@
 import os
-import cv2
+import time
 import numpy as np
 import tkinter as tk
 import platform as pf
@@ -13,7 +13,9 @@ from src.image import CImage
 from src.gui.tab import Tab
 from src.gui.status_bar import StatusBar
 from src.gui.form import Form
-from src.util.parallel import Parallel
+from src.util.parallel_exec import ctk_par_start, ctk_par_stop, async_execute
+from src.conv.spectral_convolution import SpectralConvolution
+from src.conv.kernel_generation import KernelGeneration
 
 
 class GUI_App:
@@ -93,6 +95,19 @@ class GUI_App:
             else:
                 self.remove_tab(tab_name)
 
+    def select_tab(self, _tab_name: str):
+        """Changes the currently selected tab within the tab controls.
+
+        Args:
+            tab_name (str): Name of the target tab
+        """
+        if _tab_name in self.tabs:
+            self.tab_control.set(_tab_name)
+        if _tab_name == self.MAIN_TAB:
+            self.statusbar.reset_status_bar()
+        else:
+            self.statusbar.update_status_bar(self.get_current_cimage())
+
     def check_current_tab(self):
         """Checks if the current tab is valid and exists"""
         if self.tab_control.get() not in self.tabs:
@@ -137,7 +152,7 @@ class GUI_App:
 
         self.tkroot.config(menu=self.menu_bar)
 
-        cascade_menus = ["File", "Edit", "Tab"]
+        cascade_menus = ["File", "Edit", "Filter", "Tab"]
 
         self.menus = {}
         for cascade in cascade_menus:
@@ -151,8 +166,14 @@ class GUI_App:
             ("Exit", self.tkroot.destroy),
         ]
         editOptions = [
-            ("Update Image", self.update_image),
+            ("Grayscale Image", self.grayscale_image),
+            ("Convolve Image", self.convolve_image),
             ("Deconvolve Image", self.deconvolve_image),
+        ]
+        filterOptions = [
+            ("High-Pass", self.filter_high_pass),
+            ("Low-Pass", self.filter_low_pass),
+            ("Hamming-Pass", self.filter_hamming),
         ]
         tabOptions = [
             ("Open Menu", self.setup_initial_tab),
@@ -162,6 +183,7 @@ class GUI_App:
         menuOptions = [
             fileOptions,
             editOptions,
+            filterOptions,
             tabOptions,
         ]
 
@@ -211,40 +233,63 @@ class GUI_App:
             )
             return
 
-        if self.tabs[self.tab_control.get()].menu_tab:
+        if self.tabs[self.tab_control.get()].type == Tab.TabType.MENU:
             return
 
-        output_path = filedialog.asksaveasfilename(defaultextension=".jpeg")
+        output_path = filedialog.asksaveasfilename(defaultextension=".jpg")
         if output_path:
             self.tabs[self.tab_control.get()].image.save_image(output_path)
             self.tabs[self.tab_control.get()].saved = True
 
-    def update_image(self):
+    def grayscale_image(self):
         """Takes the current image and updates it with a kernel."""
-        kernel = cv2.getGaussianKernel(9, 3) @ cv2.getGaussianKernel(9, 3).T
-        kernel = kernel / np.sum(kernel)
 
         orig_image: CImage = self.get_current_cimage()
         if orig_image is None:
             return
 
-        proc_image = ImageProcessor.filter_cimage(orig_image, kernel)
-        self.tabs[proc_image.name] = Tab(self.tab_control, proc_image)
+        async_execute(self.grayscale_image_async(orig_image))
 
-        self.select_tab(proc_image.name)
-
-    def select_tab(self, _tab_name: str):
-        """Changes the currently selected tab within the tab controls.
+    async def grayscale_image_async(self, _orig_image: CImage):
+        """Grayscale async task.
 
         Args:
-            tab_name (str): Name of the target tab
+            _orig_image (CImage): Input image
+            _kernel (np.ndarray): Input kernel
         """
-        if _tab_name in self.tabs:
-            self.tab_control.set(_tab_name)
-        if _tab_name == self.MAIN_TAB:
-            self.statusbar.reset_status_bar()
-        else:
-            self.statusbar.update_status_bar(self.get_current_cimage())
+        proc_image = ImageProcessor.grayscale_cimage(_orig_image)
+        self.tabs[proc_image.name] = Tab(self.tab_control, proc_image)
+        self.select_tab(proc_image.name)
+
+    def convolve_image(self):
+        """Takes the current image and updates it with a kernel."""
+
+        (kernel_type, kernel_size, kernel_sigma) = Form(
+            self.tkroot, Form.FormType.CONV
+        ).popup()
+
+        kernel = KernelGeneration.create_kernel(
+            kernel_type,
+            (kernel_size, kernel_size),
+            kernel_sigma,
+        )
+
+        orig_image: CImage = self.get_current_cimage()
+        if orig_image is None:
+            return
+
+        async_execute(self.convolve_image_async(orig_image, kernel))
+
+    async def convolve_image_async(self, _orig_image: CImage, _kernel: np.ndarray):
+        """Update async task.
+
+        Args:
+            _orig_image (CImage): Input image
+            _kernel (np.ndarray): Input kernel
+        """
+        proc_image = ImageProcessor.convolve(_orig_image, _kernel)
+        self.tabs[proc_image.name] = Tab(self.tab_control, proc_image)
+        self.select_tab(proc_image.name)
 
     def deconvolve_image(self):
         """Deconvolves the current image using the MRK and Bregmen deconvolution with given parameters"""
@@ -253,15 +298,16 @@ class GUI_App:
         if orig_image is None:
             return
 
-        (kernel_size, params) = Form(self.tkroot, Form.FormType.DECONV).popup()
+        (kernel_size, params) = Form(self.tkroot, Form.FormType.MRK_DECONV).popup()
 
         if kernel_size is None or params is None:
             return
 
-        Parallel._run_async_task(
-            self.async_loop,
-            self.run_deconvolution_async(orig_image, kernel_size, params),
-        )
+        if kernel_size <= 3 or kernel_size % 2 == 0:
+            self.throw_error("Kernel size must be an odd integer greater than 3.")
+            return
+
+        async_execute(self.run_deconvolution_async(orig_image, kernel_size, params))
 
     async def run_deconvolution_async(self, _image: CImage, _kernel_size: int, _params):
         """Deconvolution async task.
@@ -276,8 +322,74 @@ class GUI_App:
             int(_kernel_size),
             _params,
         )
-        self.tabs[decon_image.name] = Tab(self.tab_control, decon_image, _kernel=kernel)
+        self.tabs[decon_image.name] = Tab(self.tab_control, decon_image)
         self.select_tab(decon_image.name)
+
+    def filter_high_pass(self):
+        """Filter current image with a high pass filter"""
+        orig_image: CImage = self.get_current_cimage()
+        if orig_image is None:
+            return
+
+        offset_size = Form(self.tkroot, Form.FormType.FILTER).popup()
+
+        if not offset_size:
+            return
+
+        filter_image_data = SpectralConvolution.fft_filter(
+            orig_image.data,
+            KernelGeneration.FilterType.HIGH_PASS,
+            int(offset_size),
+        )
+        filter_image = CImage(
+            filter_image_data.astype(np.uint8), orig_image.name, _stamp=True
+        )
+        self.tabs[filter_image.name] = Tab(self.tab_control, filter_image)
+        self.select_tab(filter_image.name)
+
+    def filter_low_pass(self):
+        """Filter current image with a low pass filter"""
+        orig_image: CImage = self.get_current_cimage()
+        if orig_image is None:
+            return
+
+        offset_size = Form(self.tkroot, Form.FormType.FILTER).popup()
+
+        if not offset_size:
+            return
+
+        filter_image_data = SpectralConvolution.fft_filter(
+            orig_image.data,
+            KernelGeneration.FilterType.LOW_PASS,
+            int(offset_size),
+        )
+        filter_image = CImage(
+            filter_image_data.astype(np.uint8), orig_image.name, _stamp=True
+        )
+        self.tabs[filter_image.name] = Tab(self.tab_control, filter_image)
+        self.select_tab(filter_image.name)
+
+    def filter_hamming(self):
+        """Filter current image with hamming window"""
+        orig_image: CImage = self.get_current_cimage()
+        if orig_image is None:
+            return
+
+        offset_size = Form(self.tkroot, Form.FormType.FILTER).popup()
+
+        if not offset_size:
+            return
+
+        filter_image_data = SpectralConvolution.fft_filter(
+            orig_image.data,
+            KernelGeneration.FilterType.HAMMING,
+            int(offset_size),
+        )
+        filter_image = CImage(
+            filter_image_data.astype(np.uint8), orig_image.name, _stamp=True
+        )
+        self.tabs[filter_image.name] = Tab(self.tab_control, filter_image)
+        self.select_tab(filter_image.name)
 
     def throw_error(self, _message: str):
         """Throws error message popup
@@ -304,7 +416,9 @@ def main():
     tkroot = ctk.CTk()
     async_loop = asyncio.get_event_loop()
     GUI_App(tkroot, async_loop)
+    ctk_par_start()
     tkroot.mainloop()
+    ctk_par_stop()
 
 
 if __name__ == "__main__":

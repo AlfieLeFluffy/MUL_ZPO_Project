@@ -1,7 +1,6 @@
 import cv2  # type: ignore
 import numpy as np
 from enum import Enum
-import time
 
 
 class CImage:
@@ -18,11 +17,18 @@ class CImage:
         _data: np.array,
         _name: str = None,
         _type: IMAGE_TYPE = IMAGE_TYPE.RGB_INT,
-        time_stamp: bool = False,
+        _stamp: bool = False,
     ):
         self.data = _data
-        if time_stamp:
-            self.name = time.strftime("%Y-%m-%d_%H-%M-%S_") + _name
+        if _stamp:
+            sections = _name.split("_")
+            if len(sections) <= 1:
+                self.name = "1_" + _name
+            else:
+                if sections[0].isdigit():
+                    self.name = str(int(sections[0]) + 1) + "_" + "_".join(sections[1:])
+                else:
+                    self.name = "1_" + _name
         else:
             self.name = _name
         self.type = _type
@@ -55,8 +61,9 @@ class CImage:
     def to_double(self):
         match self.type:
             case self.IMAGE_TYPE.RGB_INT:
-                self.data = self.data / 255
-                self.type = self.IMAGE_TYPE.RGB_DOUBLE
+                data = self.data / 255
+                type = self.IMAGE_TYPE.RGB_DOUBLE
+                return CImage(data, self.name, type)
 
     def ycbcr2rgb(self):
         assert self.type in [self.IMAGE_TYPE.YCBCR_INT, self.IMAGE_TYPE.YCBCR_DOUBLE], (

@@ -1,59 +1,106 @@
-import cv2
 import numpy as np
+
+# from src.util.plotting import plot_images
+from src.conv.kernel_generation import KernelGeneration as kg
 
 
 class SpectralConvolution:
     @staticmethod
-    def compute_dft(_image):
-        return cv2.dft(np.float32(_image), flags=cv2.DFT_COMPLEX_OUTPUT)
+    def fft_convolve(_image: np.ndarray, _kernel: np.ndarray, mode: str = "same"):
+        """Convolve an image with a kernel using FFT.
 
-    @staticmethod
-    def compute_idft(_dft_image):
-        return cv2.idft(_dft_image, flags=cv2.DFT_SCALE | cv2.DFT_REAL_OUTPUT)
+        Parameters:
+            _image: Input image
+            _kernel: Input kernel
+            mode: "same" returns output the same size as input image
+                  "full" returns the full linear convolution
+                  "valid" returns output only where kernel completely overlaps image
 
-    @staticmethod
-    def shift_spec(_dft_image):
-        return np.fft.fftshift(_dft_image)
+        Returns:
+            (np.ndarray): Output image
+        """
+        image = np.asarray(_image, dtype=float)
+        kernel = np.asarray(_kernel, dtype=float)
 
-    @staticmethod
-    def unshift_spec(_dft_image):
-        return np.fft.ifftshift(_dft_image)
+        if image.ndim == 3 and kernel.ndim == 2:
+            channels = [
+                SpectralConvolution.fft_convolve(image[:, :, c], kernel, mode=mode)
+                for c in range(image.shape[2])
+            ]
+            return np.stack(channels, axis=2)
 
-    @staticmethod
-    def spec_decibel(_dft_image):
-        if _dft_image.ndim == 3:
-            return 20 * np.log(
-                cv2.magnitude(_dft_image[:, :, 0], _dft_image[:, :, 1])
-                + np.finfo(float).eps
+        if image.ndim != 2 or kernel.ndim != 2:
+            raise ValueError(
+                "fft_convolve supports a 2D image and 2D kernel, or a 3D image with a 2D kernel"
             )
-        return 20 * np.log(_dft_image + np.finfo(float).eps)
+
+        fft_shape = tuple(np.array(image.shape) + np.array(kernel.shape) - 1)
+        image_fft = np.fft.fft2(image, s=fft_shape)
+        kernel_fft = np.fft.fft2(kernel, s=fft_shape)
+        conv = np.fft.ifft2(image_fft * kernel_fft)
+        conv = np.real(conv)
+
+        if mode == "full":
+            return conv
+        if mode == "same":
+            start = [(conv.shape[i] - image.shape[i]) // 2 for i in range(2)]
+            end = [start[i] + image.shape[i] for i in range(2)]
+            return conv[start[0] : end[0], start[1] : end[1]]
+        if mode == "valid":
+            start = [kernel.shape[i] - 1 for i in range(2)]
+            end = [start[i] + image.shape[i] - kernel.shape[i] + 1 for i in range(2)]
+            return conv[start[0] : end[0], start[1] : end[1]]
+
+        raise ValueError("mode must be 'same', 'full', or 'valid'")
 
     @staticmethod
-    def image_magnitude(_dft_image):
-        return cv2.magnitude(_dft_image[:, :, 0], _dft_image[:, :, 1])
+    def fft_filter(_image: np.ndarray, _type: kg.FilterType, _offset: int):
+        """Filters an image with a kernel using FFT.
 
-    @staticmethod
-    def image2spec(_image):
-        imageDFT = SpectralConvolution.compute_dft(_image)
-        shifted = SpectralConvolution.shift_spec(imageDFT)
-        return shifted
+        Parameters:
+            _image: Input image
+            _type: Filter type
+            _offset: Size of the filter offset
 
-    @staticmethod
-    def spec2image(_dft_image):
-        unshifted = SpectralConvolution.unshift_spec(_dft_image)
-        undft = SpectralConvolution.compute_idft(unshifted)
-        return undft
+        Returns:
+            (np.ndarray): Output image
+        """
+        image = np.asarray(_image, dtype=float)
+        fft_shape = tuple(np.array(image.shape))
 
-    @staticmethod
-    def filter_image(_image, _filter):
-        imageDFT = SpectralConvolution.image2spec(_image)
-        filtered = imageDFT * _filter
-        imageOutput = SpectralConvolution.spec2image(filtered)
-        return imageOutput
+        if image.ndim == 3:
+            channels = [
+                SpectralConvolution.fft_filter(image[:, :, c], _type, _offset)
+                for c in range(image.shape[2])
+            ]
+            return np.stack(channels, axis=2)
 
-    @staticmethod
-    def filter_image_reverse(_image, _filter):
-        imageDFT = SpectralConvolution.image2spec(_image)
-        filtered = imageDFT / _filter
-        imageOutput = SpectralConvolution.spec2image(filtered)
-        return imageOutput
+        match _type:
+            case kg.FilterType.HIGH_PASS:
+                kernel = kg.create_high_pass_filter(
+                    (fft_shape[0], fft_shape[1]),
+                    _offset,
+                )
+            case kg.FilterType.LOW_PASS:
+                kernel = kg.create_low_pass_filter(
+                    (fft_shape[0], fft_shape[1]),
+                    _offset,
+                )
+            case kg.FilterType.HAMMING:
+                kernel = kg.create_hamming_window(
+                    (fft_shape[0], fft_shape[1]),
+                    _offset,
+                )
+            case _:
+                raise ValueError("fft_filter: invalid filter type")
+
+        if image.ndim != 2 or kernel.ndim != 2:
+            raise ValueError(
+                "fft_convolve supports a 2D image and 2D kernel, or a 3D image with a 2D kernel"
+            )
+
+        image_fft = np.fft.fft2(image, s=fft_shape)
+        conv = np.fft.ifft2(np.fft.ifftshift(np.fft.fftshift(image_fft) * kernel))
+        conv = np.real(conv)
+
+        return conv

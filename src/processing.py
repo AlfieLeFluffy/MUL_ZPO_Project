@@ -1,10 +1,9 @@
 import cv2  # type: ignore
 import numpy as np
 
-# import multiprocessing as mp
-
 from src.image import CImage
 from src.util.plotting import plot_images
+from src.conv.spectral_convolution import SpectralConvolution as sc
 
 
 class ImageProcessor:
@@ -12,7 +11,7 @@ class ImageProcessor:
     from src.deconvolution import Deconvolve
 
     @staticmethod
-    def filter_cimage(_image: CImage, _kernel: np.ndarray):
+    def convolve(_image: CImage, _kernel: np.ndarray, _verbose: bool = False):
         """Applies a specified kernel to an image.
 
         Args:
@@ -24,15 +23,19 @@ class ImageProcessor:
         """
 
         image_data = _image.data
-        imageOutput = cv2.filter2D(image_data, 0, kernel=_kernel)
-        imageOutput = cv2.normalize(
-            imageOutput, None, 255, 0, cv2.NORM_MINMAX, cv2.CV_8U
-        )
-        cImageOutput = CImage(
-            imageOutput, _image.name, CImage.IMAGE_TYPE.RGB_INT, time_stamp=True
-        )
-
-        return cImageOutput
+        output = sc.fft_convolve(image_data, _kernel)
+        output = output.astype(np.uint8)
+        if _verbose:
+            plot_images(
+                {
+                    "image": image_data,
+                    "kernel": _kernel,
+                    "output": output,
+                },
+                2,
+                2,
+            )
+        return CImage(output, _image.name, CImage.IMAGE_TYPE.RGB_INT, _stamp=True)
 
     @staticmethod
     def deconvolve_cimage(
@@ -55,10 +58,12 @@ class ImageProcessor:
         else:
             params = _params
 
-        _image.to_double()
-        kernel = ImageProcessor.Deconvolve.deconvolve_cimage_mrk(_image, _ksize, params)
+        image_double = _image.to_double()
+        kernel = ImageProcessor.Deconvolve.deconvolve_cimage_mrk(
+            image_double, _ksize, params
+        )
         output_cimage = ImageProcessor.Deconvolve.deconvolve_cimage_bregman(
-            _image, kernel, _verbose=params.verbose
+            image_double, kernel, _verbose=params.verbose
         )
 
         if params.verbose:
@@ -73,3 +78,36 @@ class ImageProcessor:
             )
 
         return output_cimage, kernel
+
+    @staticmethod
+    def grayscale_cimage(
+        _image: CImage,
+    ):
+        """Converts a CImage instance to grayscale.
+
+        Args:
+            _image (CImage): Input image
+
+        Returns:
+            CImage: Grayscale version of the input image
+        """
+        if _image.type in [CImage.IMAGE_TYPE.RGB_INT, CImage.IMAGE_TYPE.BGR_INT]:
+            grayscale_data = cv2.cvtColor(_image.data, cv2.COLOR_RGB2GRAY)
+            image_type = CImage.IMAGE_TYPE.RGB_INT
+        elif _image.type in [
+            CImage.IMAGE_TYPE.RGB_DOUBLE,
+            CImage.IMAGE_TYPE.BGR_DOUBLE,
+        ]:
+            grayscale_data = cv2.cvtColor(_image.data, cv2.COLOR_RGB2GRAY)
+            image_type = CImage.IMAGE_TYPE.RGB_DOUBLE
+        elif _image.type in [
+            CImage.IMAGE_TYPE.YCBCR_INT,
+            CImage.IMAGE_TYPE.YCBCR_DOUBLE,
+        ]:
+            grayscale_data = _image.data[:, :, 0]
+            image_type = _image.type
+        else:
+            raise ValueError(f"Unknown image type: {_image.type}")
+
+        output_cimage = CImage(grayscale_data, _image.name, image_type, _stamp=True)
+        return output_cimage

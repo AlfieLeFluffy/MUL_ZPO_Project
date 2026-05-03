@@ -12,8 +12,7 @@ class Tab:
     class TabType(Enum):
         MENU = 1
         IMAGE = 2
-        IMAGEKERNEL = 3
-        KERNEL = 4
+        KERNEL = 3
 
     def __init__(
         self,
@@ -57,16 +56,11 @@ class Tab:
         if self.type == self.TabType.IMAGE and self.menu_controls is not None:
             raise Exception("Image tab cannot have menu controls.")
 
-        if self.type == self.TabType.IMAGE and self.kernel is not None:
-            self.type = self.TabType.IMAGEKERNEL
-
         match self.type:
             case self.TabType.MENU:
                 self.setup_menu_tab()
             case self.TabType.IMAGE:
                 self.setup_image_tab()
-            case self.TabType.IMAGEKERNEL:
-                self.setup_image_kernel_tab()
             case self.TabType.KERNEL:
                 self.setup_kernel_tab()
 
@@ -74,7 +68,7 @@ class Tab:
         """Returns whether the image in the tab is saved."""
         if self.type == self.TabType.MENU:
             return True
-        elif self.type in [self.TabType.IMAGE, self.TabType.IMAGEKERNEL]:
+        elif self.type in [self.TabType.IMAGE]:
             return self.image.is_saved()
         else:
             return True
@@ -94,13 +88,6 @@ class Tab:
 
     def setup_image_tab(self):
         """Setup for image tab."""
-        self.create_tab_frame()
-        self.create_image_label(self.tab_frame, self.image)
-        self.tab_frame.pack(padx=10, pady=10, fill="both", expand=True)
-        return self
-
-    def setup_image_kernel_tab(self):
-        """Setup for image kernel tab."""
         self.create_tab_frame()
         self.create_image_label(self.tab_frame, self.image)
         self.tab_frame.pack(padx=10, pady=10, fill="both", expand=True)

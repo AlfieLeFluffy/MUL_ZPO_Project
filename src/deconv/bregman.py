@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import fftconvolve
 
-from ..util.image_preprocessing import psf2otf
+from src.util.image_preprocessing import psf2otf
 
 
 class Bregman:
@@ -21,7 +21,7 @@ class Bregman:
     ):
         print("--- Starting Bregman ---")
         beta = 400
-        initer_max = 5
+        initer_max = 2
         outiter_max = 50
 
         # m = _image.shape[0]

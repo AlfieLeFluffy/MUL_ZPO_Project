@@ -66,7 +66,7 @@ class Deconvolve:
         ]
 
         output_cimage = CImage(
-            output_image, _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE, time_stamp=True
+            output_image, _image.name, CImage.IMAGE_TYPE.YCBCR_DOUBLE, _stamp=True
         )
         output_cimage = output_cimage.ycbcr2rgb()
 
@@ -83,6 +83,36 @@ class Deconvolve:
             )
 
         return output_cimage
+
+    @staticmethod
+    def deconvolve_cimage_direct(_image: CImage, _kernel: np.ndarray):
+        data = _image.data
+        image = np.asarray(data, dtype=float)
+        kernel = np.asarray(_kernel, dtype=float)
+
+        if image.ndim == 3 and kernel.ndim == 2:
+            channels = [
+                Deconvolve.deconvolve_cimage_direct(image[:, :, c], kernel)
+                for c in range(image.shape[2])
+            ]
+            return CImage(
+                np.stack(channels, axis=2).astype(np.uint8),
+                _image.name,
+                _stamp=True,
+            )
+
+        if image.ndim != 2 or kernel.ndim != 2:
+            raise ValueError(
+                "fft_convolve supports a 2D image and 2D kernel, or a 3D image with a 2D kernel"
+            )
+
+        fft_shape = tuple(np.array(image.shape) + np.array(kernel.shape) - 1)
+        image_fft = np.fft.fft2(image, s=fft_shape)
+        kernel_fft = np.fft.fft2(kernel, s=fft_shape)
+        deconv = np.fft.ifft2(image_fft / kernel_fft)
+        deconv = np.real(deconv)
+
+        return deconv
 
     @staticmethod
     def deconvolve_image(_image: CImage, _kernel_size: int = -1):

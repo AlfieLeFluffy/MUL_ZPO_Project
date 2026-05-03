@@ -162,6 +162,7 @@ class GUI_App:
             ("Open File", self.open_file),
             ("Save Image", self.save_file),
             "separator",
+            ("Run Tests", self.run_tests),
             ("About", self.show_popup_about),
             ("Exit", self.tkroot.destroy),
         ]
@@ -407,6 +408,106 @@ class GUI_App:
             about_window,
             text="This is a project that aims to demostrate the use of FFT/IFFT in image processing.",
         ).pack(padx=20, pady=20)
+
+    def run_tests(self):
+        async_execute(self.run_tests_async())
+
+    async def run_tests_async(self):
+        if not os.path.exists("tests"):
+            os.makedirs("tests")
+
+        # Get test image
+        test_image = self.get_current_cimage()
+        if test_image is None:
+            # Create a dummy test image if no current image
+            test_image = CImage(
+                np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8), "test_image"
+            )
+
+        number_of_cycles, kernel_size, kernel_sigma = Form(
+            self.tkroot, Form.FormType.TESTING
+        ).popup()
+
+        # Create test kernel
+        kernel = KernelGeneration.create_kernel(
+            KernelGeneration.KernelType.GAUSS_BLUR,
+            (kernel_size, kernel_size),
+            kernel_sigma,
+        )
+
+        from scipy import signal
+
+        methods = [
+            (
+                "mine fft_convolve same",
+                lambda img, ker: SpectralConvolution.fft_convolve(
+                    img, ker, mode="same"
+                ),
+            ),
+            (
+                "mine fft_convolve full",
+                lambda img, ker: SpectralConvolution.fft_convolve(
+                    img, ker, mode="full"
+                ),
+            ),
+            (
+                "mine fft_convolve valid",
+                lambda img, ker: SpectralConvolution.fft_convolve(
+                    img, ker, mode="valid"
+                ),
+            ),
+            (
+                "scipy convolve2d same",
+                lambda img, ker: signal.convolve2d(img, ker, "same"),
+            ),
+            (
+                "scipy convolve2d full",
+                lambda img, ker: signal.convolve2d(img, ker, "full"),
+            ),
+            (
+                "scipy convolve2d valid",
+                lambda img, ker: signal.convolve2d(img, ker, "valid"),
+            ),
+            (
+                "scipy fftconvolve same",
+                lambda img, ker: signal.fftconvolve(img, ker, "same"),
+            ),
+            (
+                "scipy fftconvolve full",
+                lambda img, ker: signal.fftconvolve(img, ker, "full"),
+            ),
+            (
+                "scipy fftconvolve valid",
+                lambda img, ker: signal.fftconvolve(img, ker, "valid"),
+            ),
+        ]
+
+        # Run tests and log results
+        log_file = os.path.join(
+            "tests", time.strftime("%Y_%m_%d-%H_%M_%S-") + "convolution_performance.log"
+        )
+        cycles = number_of_cycles
+        with open(log_file, "w") as f:
+            f.write("Convolution Performance Test Results\n")
+            f.write("=" * 40 + "\n")
+            f.write(f"Image size: {test_image.data.shape}\n")
+            f.write(f"Kernel size: {kernel.shape}\n")
+            f.write(f"Test run on: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Cycles per test: {cycles}\n\n")
+
+            for name, func in methods:
+                try:
+                    print(f"Running test {name}")
+                    start_time = time.time()
+                    for _ in range(cycles):
+                        result = func(test_image.data[:, :, 0].astype(float), kernel)
+                    end_time = time.time()
+                    elapsed = end_time - start_time
+                    f.write(f"{name}: {elapsed:.4f} seconds\n")
+                    f.write(f"  Output shape: {result.shape}\n")
+                except Exception as e:
+                    f.write(f"{name}: Error - {str(e)}\n")
+                f.write("\n")
 
 
 def main():

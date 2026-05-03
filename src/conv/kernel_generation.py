@@ -16,6 +16,16 @@ class KernelGeneration:
 
     @staticmethod
     def create_kernel(_type, _kernel_size: tuple, _sigma: float):
+        """A header method that combines other kernel generation methods
+
+        Args:
+            _type (KernelType): Type of kernel
+            _kernel_size (tuple): Kernel size
+            _sigma (float): Kernel variable
+
+        Returns:
+            np.ndarray: Output kernel
+        """
         if isinstance(_type, KernelGeneration.KernelType):
             match _type:
                 case KernelGeneration.KernelType.GAUSS_BLUR:
@@ -68,14 +78,14 @@ class KernelGeneration:
 
     @staticmethod
     def create_sobel_kernel(_kernel_size: tuple, _sigma: float):
-        """Create a dynamically sized Sobel kernel for horizontal edge detection.
+        """Create a dynamically sized Sobel kernel
 
         Args:
-            _kernel_size: Kernel size as (k, k), where k is odd and >= 3.
-            _sigma: Ignored for Sobel kernel. It is retained for API compatibility.
+            _kernel_size(tuple): Kernel size
+            _sigma: Rotation
 
         Returns:
-            np.ndarray: Sobel Gx kernel of the requested size.
+            np.ndarray: Sobel kernel
         """
         assert len(_kernel_size) == 2, (
             "create_sobel_kernel: kernel size has invalid dimensions"
@@ -109,6 +119,16 @@ class KernelGeneration:
 
     @staticmethod
     def create_filter(_type: FilterType, _filter_size: tuple, _offset: int):
+        """A header method for aggregating other filter creation methods
+
+        Args:
+            _type (FilterType): Filter type
+            _filter_size (tuple): Filter size
+            _offset (int): Offset within the filter
+
+        Returns:
+            np.ndarray: Output filter
+        """
         match _type:
             case KernelGeneration.FilterType.HIGH_PASS:
                 return KernelGeneration.create_high_pass_filter(_filter_size, _offset)

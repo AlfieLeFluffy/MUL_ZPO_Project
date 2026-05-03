@@ -9,6 +9,8 @@ from src.deconvolution import Deconvolve
 
 class Form:
     class FormType(Enum):
+        """Avaiable types of forms"""
+
         CONV = 1
         FILTER = 2
         MRK_DECONV = 3
@@ -16,10 +18,12 @@ class Form:
         TESTING = 5
 
     def __init__(self, _tkroot, _type: FormType):
+        """Initialization of the form class"""
         self.tkroot = _tkroot
         self.type = _type
 
     def popup(self):
+        """Based on the type of the form runs different versions of the form popup"""
         match self.type:
             case Form.FormType.MRK_DECONV:
                 decon_form_dialog = MRK_Deconvolution_Form(self.tkroot)
@@ -82,8 +86,6 @@ class MRK_Deconvolution_Form:
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Deconvolution Options")
         self.top.geometry("600x400")
-        self.top.grab_set()
-        self.top.focus_set()
         self.top.minsize(400, 200)
         self.top.bind("<Return>", lambda event: self.send())
 
@@ -162,8 +164,6 @@ class Convolution_Form:
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Convolution Options")
         self.top.geometry("400x300")
-        self.top.grab_set()
-        self.top.focus_set()
         self.top.minsize(400, 200)
         self.top.bind("<Return>", lambda event: self.send())
 
@@ -244,8 +244,6 @@ class Filter_Form:
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Filter Options")
         self.top.geometry("400x200")
-        self.top.grab_set()
-        self.top.focus_set()
         self.top.minsize(400, 200)
         self.top.bind("<Return>", lambda event: self.send())
 
@@ -307,8 +305,6 @@ class Testing_Form:
         self.top = ctk.CTkToplevel(parent)
         self.top.title("Convolution Options")
         self.top.geometry("400x300")
-        self.top.grab_set()
-        self.top.focus_set()
         self.top.minsize(400, 200)
         self.top.bind("<Return>", lambda event: self.send())
 

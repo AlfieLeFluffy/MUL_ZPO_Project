@@ -3,7 +3,8 @@ import numpy as np
 from src.image import CImage
 from src.deconv.min_rank_kernel import MinRankKernel
 from src.util.image_preprocessing import edgetaper
-from src.util.profiling import start_profiling, end_profiling
+
+# from src.util.profiling import start_profiling, end_profiling
 from src.util.plotting import plot_images
 
 
@@ -36,16 +37,26 @@ class Deconvolve:
         """
         ycbcr = Deconvolve.convert_to_ycbcr(_image)
 
-        profile = start_profiling()
+        # profile = start_profiling()
         kernel = Deconvolve.MinRankKernel.deconvolve(
             ycbcr.data[:, :, 0], _ksize, _params
         )
-        end_profiling(profile, f"profiling/{_image.name}_{str(_ksize)}temp.txt")
+        # end_profiling(profile, f"{_image.name}_{str(_ksize)}-temp.log")
 
         return kernel
 
     @staticmethod
     def deconvolve_cimage_bregman(_image: CImage, _kernel: np.ndarray, _verbose=False):
+        """Deconvolution method using the split fast Bregman method.
+
+        Args:
+            _image (CImage): Input image
+            _kernel (np.ndarray): Input kernel
+            _verbose (bool, optional): Verbose. Defaults to False.
+
+        Returns:
+            CImage: Output image
+        """
         ycbcr = Deconvolve.convert_to_ycbcr(_image)
 
         nb_lambda = 3000
@@ -86,6 +97,18 @@ class Deconvolve:
 
     @staticmethod
     def deconvolve_cimage_direct(_image: CImage, _kernel: np.ndarray):
+        """Testing brute force method that directly divides the image spectrum by the kernel.
+
+        Args:
+            _image (CImage): Input image
+            _kernel (np.ndarray): Input kernel
+
+        Raises:
+            ValueError: Many
+
+        Returns:
+            CImage: Output image
+        """
         data = _image.data
         image = np.asarray(data, dtype=float)
         kernel = np.asarray(_kernel, dtype=float)
@@ -116,6 +139,15 @@ class Deconvolve:
 
     @staticmethod
     def deconvolve_image(_image: CImage, _kernel_size: int = -1):
+        """A method that combines both MRK and Bregman into one function call.
+
+        Args:
+            _image (CImage): Input image
+            _kernel_size (int, optional): Expected kernel size. Defaults to -1.
+
+        Returns:
+            CImage: Ouput image
+        """
         kernel_size = _kernel_size if _kernel_size != -1 else 9
         param = MinRankKernel.MinRankKernelParam()
         kernel = Deconvolve.deconvolve_cimage_mrk(_image, kernel_size, param)
@@ -126,6 +158,17 @@ class Deconvolve:
 
     @staticmethod
     def convert_to_ycbcr(_image: CImage):
+        """A function that check and converts a CImage into a YYCBCR CImage
+
+        Args:
+            _image (CImage): Input image
+
+        Raises:
+            Exception: Hopefully nonw
+
+        Returns:
+            CImage: Ouput YCBCR CImage
+        """
         if _image.type in [CImage.IMAGE_TYPE.RGB_INT, CImage.IMAGE_TYPE.RGB_DOUBLE]:
             ycbcr: CImage = _image.rgb2ycbcr()
         elif _image.type in [

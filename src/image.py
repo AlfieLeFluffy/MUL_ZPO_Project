@@ -5,6 +5,8 @@ from enum import Enum
 
 class CImage:
     class IMAGE_TYPE(Enum):
+        """Possible image formats"""
+
         RGB_INT = 1
         RGB_DOUBLE = 2
         BGR_INT = 3
@@ -19,6 +21,7 @@ class CImage:
         _type: IMAGE_TYPE = IMAGE_TYPE.RGB_INT,
         _stamp: bool = False,
     ):
+        """Initializas an CImage instance"""
         self.data = _data
         if _stamp:
             sections = _name.split("_")
@@ -36,12 +39,15 @@ class CImage:
         self.saved = False
 
     def __str__(self):
+        """Base method that return string information about the CImage instance"""
         return f"CImage(name={self.name}, type={self.type}, size={self.size}, saved={self.saved})"
 
     def is_saved(self):
+        """Method for checking if the image was saved"""
         return self.saved
 
     def save_image(self, _filepath):
+        """Saves the image instance"""
         img_bgr = cv2.cvtColor(self.data, cv2.COLOR_RGB2BGR)
         check = cv2.imwrite(_filepath, img_bgr)
         assert check is True, f"Failed to save image to path {_filepath}"
@@ -49,6 +55,7 @@ class CImage:
 
     @staticmethod
     def load_image(_filepath: str):
+        """Loads an image and return an instance of CImage"""
         img_bgr = cv2.imread(_filepath, cv2.IMREAD_COLOR_BGR)
         assert img_bgr is not None, f"Failed to load image from path: {_filepath}"
 
@@ -59,6 +66,7 @@ class CImage:
         return img
 
     def to_double(self):
+        """Creates a copy of the CImage instace converted to double"""
         match self.type:
             case self.IMAGE_TYPE.RGB_INT:
                 data = self.data / 255
@@ -66,6 +74,7 @@ class CImage:
                 return CImage(data, self.name, type)
 
     def ycbcr2rgb(self):
+        """Creates a copy of the CImage instace converted into rgb"""
         assert self.type in [self.IMAGE_TYPE.YCBCR_INT, self.IMAGE_TYPE.YCBCR_DOUBLE], (
             f"Failed to convert rgb to ycbcr as the image {self.name} is in type {self.type}"
         )
@@ -81,6 +90,7 @@ class CImage:
         return output
 
     def rgb2ycbcr(self):
+        """Creates a copy of the CImage instance converted into ycbcr"""
         assert self.type in [self.IMAGE_TYPE.RGB_INT, self.IMAGE_TYPE.RGB_DOUBLE], (
             f"Failed to convert rgb to ycbcr as the image {self.name} is in type {self.type}"
         )

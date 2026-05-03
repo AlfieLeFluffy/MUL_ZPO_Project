@@ -410,16 +410,16 @@ class GUI_App:
         ).pack(padx=20, pady=20)
 
     def run_tests(self):
+        """Tests the implementation of fft_convolve against other similar methods"""
         async_execute(self.run_tests_async())
 
     async def run_tests_async(self):
+        """Runs test task async"""
         if not os.path.exists("tests"):
             os.makedirs("tests")
 
-        # Get test image
         test_image = self.get_current_cimage()
         if test_image is None:
-            # Create a dummy test image if no current image
             test_image = CImage(
                 np.random.randint(0, 255, (256, 256, 3), dtype=np.uint8), "test_image"
             )
@@ -428,7 +428,6 @@ class GUI_App:
             self.tkroot, Form.FormType.TESTING
         ).popup()
 
-        # Create test kernel
         kernel = KernelGeneration.create_kernel(
             KernelGeneration.KernelType.GAUSS_BLUR,
             (kernel_size, kernel_size),
@@ -482,7 +481,6 @@ class GUI_App:
             ),
         ]
 
-        # Run tests and log results
         log_file = os.path.join(
             "tests", time.strftime("%Y_%m_%d-%H_%M_%S-") + "convolution_performance.log"
         )

@@ -517,7 +517,8 @@ def main():
     ctk.set_default_color_theme("dark-blue")
 
     tkroot = ctk.CTk()
-    async_loop = asyncio.get_event_loop()
+    async_loop = asyncio.new_event_loop()
+    # async_loop = asyncio.get_event_loop()
     GUI_App(tkroot, async_loop)
     ctk_par_start()
     tkroot.mainloop()

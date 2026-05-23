@@ -114,7 +114,7 @@ class KernelGeneration:
             )
             kernel = kernel.astype(np.int8) * int(kernel_size / 2)
         kernel = np.rot90(kernel, int(_sigma))
-        print(kernel)
+        kernel = kernel / np.sum(np.abs(kernel))
         return kernel.astype(np.float32)
 
     @staticmethod

@@ -4,7 +4,7 @@ from src.image import CImage
 from src.deconv.min_rank_kernel import MinRankKernel
 from src.util.image_preprocessing import edgetaper
 
-# from src.util.profiling import start_profiling, end_profiling
+from src.util.profiling import start_profiling, end_profiling
 from src.util.plotting import plot_images
 
 
@@ -37,11 +37,11 @@ class Deconvolve:
         """
         ycbcr = Deconvolve.convert_to_ycbcr(_image)
 
-        # profile = start_profiling()
+        profile = start_profiling()
         kernel = Deconvolve.MinRankKernel.deconvolve(
             ycbcr.data[:, :, 0], _ksize, _params
         )
-        # end_profiling(profile, f"{_image.name}_{str(_ksize)}-temp.log")
+        end_profiling(profile, f"{_image.name}_{str(_ksize)}-temp.log")
 
         return kernel
 
